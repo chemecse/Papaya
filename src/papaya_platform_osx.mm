@@ -11,12 +11,6 @@
 #include "papaya_core.h"
 #include "libs/imgui/imgui.h"
 
-// NOTES:
-//  + window resizing is currently disabled because Cocoa's NSOpenGLView
-//    breaks the normal glViewport behaviour
-//  + initial window size can temporarily be defined with the corresponding
-//    defines
-#define OSX_ALLOW_WINDOW_RESIZE 0
 #define OSX_INITIAL_WINDOW_WIDTH 800
 #define OSX_INITIAL_WINDOW_HEIGHT 600
 
@@ -35,8 +29,10 @@ static CVReturn GlobalDisplayLinkCallback(CVDisplayLinkRef DisplayLink, const CV
 @public
 	CVDisplayLinkRef DisplayLink;
 	bool32 IsInitialized;
+	bool32 DidResize;
 }
 - (NSPoint)getWindowOrigin;
+- (void)resizeSurfaceBacking;
 - (void)openFileDialog:(FileDialogReturn*)Return;
 - (void)saveFileDialog:(FileDialogReturn*)Return;
 @end
@@ -114,6 +110,7 @@ double Platform::GetMilliseconds()
 - (id)initWithFrame:(NSRect)frame
 {
 	IsInitialized = 0;
+	DidResize = 0;
 	Mem.IsRunning = 0;
 
 	NSOpenGLPixelFormatAttribute PixelFormatAttrs[] = {
@@ -151,9 +148,7 @@ double Platform::GetMilliseconds()
 	CGLPixelFormatObj PixelFormat = (CGLPixelFormatObj)[[self pixelFormat] CGLPixelFormatObj];
 	CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(DisplayLink, CGLContext, PixelFormat);
 
-	GLint WindowSize[2] = {Mem.Window.Width, Mem.Window.Height};
-	CGLSetParameter(CGLContext, kCGLCPSurfaceBackingSize, WindowSize);
-	CGLEnable(CGLContext, kCGLCESurfaceBackingSize);
+	[self resizeSurfaceBacking];
 
 	CGLLockContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
 	if (!GL::InitAndValidate()) { exit(1); }
@@ -271,6 +266,17 @@ static void OnMouseMoveEvent(NSEvent* event)
 	ImGui::GetIO().DeltaTime = (float)(CurTime - Mem.Debug.LastFrameTime);
 	Mem.Debug.LastFrameTime = CurTime;
 
+	if (DidResize) {
+		NSSize FrameSize = [[_window contentView] frame].size;
+		ImGui::GetIO().DisplaySize = ImVec2((float)FrameSize.width, (float)FrameSize.height);
+		Mem.Window.Width = FrameSize.width;
+		Mem.Window.Height = FrameSize.height;
+
+		[self resizeSurfaceBacking];
+
+		DidResize = 0;
+	}
+
 	ImGui::NewFrame();
 
 	Core::UpdateAndRender(&Mem);
@@ -297,15 +303,10 @@ static void OnMouseMoveEvent(NSEvent* event)
 	return kCVReturnSuccess;
 }
 
-#if OSX_ALLOW_WINDOW_RESIZE
 - (void)windowDidResize:(NSNotification*)notification
 {
-	NSSize FrameSize = [[_window contentView] frame].size;
-	ImGui::GetIO().DisplaySize = ImVec2((float)FrameSize.width, (float)FrameSize.height);
-	Mem.Window.Width = FrameSize.width;
-	Mem.Window.Height = FrameSize.height;
+	DidResize = 1;
 }
-#endif
 
 - (void)resumeDisplayRenderer
 {
@@ -337,6 +338,16 @@ static void OnMouseMoveEvent(NSEvent* event)
 - (NSPoint)getWindowOrigin
 {
 	return [_window convertRectToScreen:[[_window contentView] frame]].origin;
+}
+
+// openGLContext must be current and locked around this function call
+- (void)resizeSurfaceBacking
+{
+	CGLContextObj CGLContext = (CGLContextObj)[[self openGLContext] CGLContextObj];
+
+	GLint WindowSize[2] = {Mem.Window.Width, Mem.Window.Height};
+	CGLSetParameter(CGLContext, kCGLCPSurfaceBackingSize, WindowSize);
+	CGLEnable(CGLContext, kCGLCESurfaceBackingSize);
 }
 
 - (void)openFileDialog:(FileDialogReturn*)Return
@@ -410,11 +421,7 @@ int main(int argc, char* argv[])
 	ImGui::GetIO().DisplaySize = ImVec2((float)Mem.Window.Width, (float)Mem.Window.Height);
 	NSRect WindowRect = NSMakeRect((ScreenWidth - Mem.Window.Width) / 2, (ScreenHeight - Mem.Window.Height) / 2, Mem.Window.Width, Mem.Window.Height);
 
-#if OSX_ALLOW_WINDOW_RESIZE
 	NSUInteger WindowStyle = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
-#else
-	NSUInteger WindowStyle = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask;
-#endif
 	NSWindow* Window = [[NSWindow alloc] initWithContentRect:WindowRect styleMask:WindowStyle backing:NSBackingStoreBuffered defer:NO];
 	[Window autorelease];
 
@@ -439,12 +446,6 @@ int main(int argc, char* argv[])
 	[Window setContentView:View];
 	[Window setDelegate:View];
 	[Window setTitle:AppName];
-
-#if OSX_ALLOW_WINDOW_RESIZE
-	// enables osx fullscreen ability
-	// NOTE: only works if NSResizableWindowMask is set
-	[Window setCollectionBehavior: NSWindowCollectionBehaviorFullScreenPrimary];
-#endif
 
 	// bring window to front of other windows
 	[Window orderFrontRegardless];
