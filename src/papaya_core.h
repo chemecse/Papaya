@@ -3,7 +3,9 @@
 #include "papaya_platform.h"
 #include "libs/gl_util.h"
 #include "libs/timer.h"
+#ifndef PAPAYA_NO_EASYTAB_SUPPORT
 #include "libs/easytab.h"
+#endif
 
 #include "core/crop_rotate.h"
 #include "core/picker.h"

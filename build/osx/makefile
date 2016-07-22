@@ -8,6 +8,7 @@ SRCS=papaya_core.cpp         \
 	 glew.cpp                \
 	 imgui.cpp               \
 	 single_header_libs.cpp  \
+	 crop_rotate.cpp         \
 	 picker.cpp              \
 	 prefs.cpp
 

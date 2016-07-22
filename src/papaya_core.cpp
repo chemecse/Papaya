@@ -57,10 +57,10 @@ bool core::open_doc(char* path, PapayaMemory* mem)
         // Center canvas
         {
             int32 top_margin = 53; // TODO: Put common layout constants in struct
-            int32 x = 
-                math::round_to_int((mem->window.width - 
+            int32 x =
+                math::round_to_int((mem->window.width -
                                    (float)mem->doc.width * mem->doc.canvas_zoom) / 2.0f);
-            int32 y = top_margin + 
+            int32 y = top_margin +
                 math::round_to_int((mem->window.height - top_margin -
                                    (float)mem->doc.height * mem->doc.canvas_zoom) / 2.0f);
             mem->doc.canvas_pos = Vec2i(x, y);
@@ -95,7 +95,7 @@ bool core::open_doc(char* path, PapayaMemory* mem)
     }
 
     // Projection matrix
-    mat4x4_ortho(mem->doc.proj_mtx, 0.f, 
+    mat4x4_ortho(mem->doc.proj_mtx, 0.f,
                  (float)mem->doc.width, 0.f, (float)mem->doc.height,
                  -1.f, 1.f);
 
@@ -799,7 +799,7 @@ void core::update(PapayaMemory* mem)
             if (ImGui::BeginMenu("FILE")) {
                 mem->misc.menu_open = true;
 
-                if (mem->doc.texture_id) { 
+                if (mem->doc.texture_id) {
                     // A document is already open
                     if (ImGui::MenuItem("Close")) { close_doc(mem); }
                     if (ImGui::MenuItem("Save")) {
@@ -1421,7 +1421,7 @@ void core::update(PapayaMemory* mem)
             if (ImGui::GetIO().KeyShift &&
                 mem->doc.undo.current_index < mem->doc.undo.count - 1 &&
                 mem->doc.undo.current->next != 0) {
-                // Redo 
+                // Redo
                 mem->doc.undo.current = mem->doc.undo.current->next;
                 mem->doc.undo.current_index++;
                 mem->brush.line_segment_start_uv = mem->doc.undo.current->line_segment_start_uv;
@@ -1580,7 +1580,7 @@ void core::update(PapayaMemory* mem)
                     mem->doc.canvas_zoom * 0.5f);
 
             mat4x4_translate_in_place(m, Offset.x, Offset.y, 0.f);
-            mat4x4_rotate_Z(r, m, mem->crop_rotate.slider_angle + 
+            mat4x4_rotate_Z(r, m, mem->crop_rotate.slider_angle +
                     math::to_radians(90.0f * mem->crop_rotate.base_rotation));
             mat4x4_translate_in_place(r, -Offset.x, -Offset.y, 0.f);
             mat4x4_dup(m, r);
@@ -1701,6 +1701,8 @@ EndOfDoc:
                 ImGui::Text("Pressure");                    ImGui::NextColumn();
                 ImGui::Text("%f", mem->tablet.pressure);    ImGui::NextColumn();
                 ImGui::Text("Pen touch");                   ImGui::NextColumn();
+
+#ifndef PAPAYA_NO_EASYTAB_SUPPORT
                 ImGui::Text((mem->tablet.buttons &
                             EasyTab_Buttons_Pen_Touch) ?
                             "1" : "0");                     ImGui::NextColumn();
@@ -1712,6 +1714,7 @@ EndOfDoc:
                 ImGui::Text((mem->tablet.buttons &
                             EasyTab_Buttons_Pen_Upper) ?
                             "1" : "0");                     ImGui::NextColumn();
+#endif
 
                 ImGui::Columns(1);
                 ImGui::Separator();
