@@ -3,6 +3,8 @@
 #include "libs/mathlib.h"
 #include "libs/gl_util.h"
 #include "papaya_core.h"
+#include <stdlib.h>
+#include <string.h>
 
 void undo::init(PapayaMemory* mem)
 {

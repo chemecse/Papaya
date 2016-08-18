@@ -43,8 +43,8 @@ typedef ptrdiff_t GLsizeiptr;
 
 #endif // _WIN32
 
+#if (defined(_WIN32) || defined(__linux__))
 #include <GL/gl.h>
-
 
 #define PAPAYA_GL_LIST \
     /* ret, name, params */ \
@@ -85,6 +85,12 @@ PAPAYA_GL_LIST
 PAPAYA_GL_LIST_WIN32
 #undef GLE
 
+#elif defined(__APPLE__)
+#include <OpenGL/gl.h>
+#else
+#error "Unsupported OpenGL implementation"
+#endif
+
 bool gl_lite_init();
 
 #endif //GL_LITE_H
@@ -93,10 +99,12 @@ bool gl_lite_init();
 
 #ifdef GL_LITE_IMPLEMENTATION
 
+#ifndef __APPLE__
 #define GLE(ret, name, ...) name##proc * gl##name;
 PAPAYA_GL_LIST
 PAPAYA_GL_LIST_WIN32
 #undef GLE
+#endif
 
 bool gl_lite_init()
 {
@@ -137,6 +145,8 @@ bool gl_lite_init()
         PAPAYA_GL_LIST
         PAPAYA_GL_LIST_WIN32
     #undef GLE
+#elif defined(__APPLE__)
+	// No need to load GL because OSX handles this for us
 #else
     #error "GL loading for this platform is not implemented yet."
 #endif

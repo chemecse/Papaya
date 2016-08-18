@@ -1,16 +1,15 @@
 VPATH=../../src              \
 	  ../../src/core         \
 	  ../../src/libs         \
-	  ../../src/libs/imgui   \
-	  ../../src/libs/glew
+	  ../../src/libs/imgui
 
 SRCS=papaya_core.cpp         \
-	 glew.cpp                \
 	 imgui.cpp               \
 	 single_header_libs.cpp  \
 	 crop_rotate.cpp         \
 	 picker.cpp              \
-	 prefs.cpp
+	 prefs.cpp               \
+	 undo.cpp
 
 OBJS=$(subst .cpp,.o,$(SRCS))
 LIBS=-framework Cocoa -framework CoreVideo -framework OpenGL

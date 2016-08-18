@@ -10,6 +10,7 @@
 #include "papaya_platform.h"
 #include "papaya_core.h"
 #include "libs/imgui/imgui.h"
+#include "libs/gl_lite.h"
 
 #define OSX_INITIAL_WINDOW_WIDTH 800
 #define OSX_INITIAL_WINDOW_HEIGHT 600
@@ -41,29 +42,29 @@ global_variable PapayaMemory Mem;
 global_variable PapayaView* View;
 global_variable mach_timebase_info_data_t MachClockFrequency;
 
-void Platform::Print(char* Message)
+void platform::print(char* Message)
 {
 	printf("%s", Message);
 }
 
-void Platform::StartMouseCapture()
+void platform::start_mouse_capture()
 {
 	//
 }
 
-void Platform::ReleaseMouseCapture()
+void platform::stop_mouse_capture()
 {
 	//
 }
 
-void Platform::SetMousePosition(int32 x, int32 y)
+void platform::set_mouse_position(int32 x, int32 y)
 {
 	NSPoint Origin = [View getWindowOrigin];
 	CGPoint Point = {Origin.x + x, Origin.y + y};
 	CGWarpMouseCursorPosition(Point);
 }
 
-void Platform::SetCursorVisibility(bool Visible)
+void platform::set_cursor_visibility(bool Visible)
 {
 	if (Visible) {
 		CGDisplayShowCursor(kCGDirectMainDisplay);
@@ -73,7 +74,7 @@ void Platform::SetCursorVisibility(bool Visible)
 	}
 }
 
-char* Platform::OpenFileDialog()
+char* platform::open_file_dialog()
 {
 	char* FilePath = NULL;
 	FileDialogReturn* Return = [FileDialogReturn alloc];
@@ -87,7 +88,7 @@ char* Platform::OpenFileDialog()
 	return FilePath;
 }
 
-char* Platform::SaveFileDialog()
+char* platform::save_file_dialog()
 {
 	char* FilePath = NULL;
 	FileDialogReturn* Return = [FileDialogReturn alloc];
@@ -101,7 +102,7 @@ char* Platform::SaveFileDialog()
 	return FilePath;
 }
 
-double Platform::GetMilliseconds()
+double platform::get_milliseconds()
 {
 	return (double)(mach_absolute_time() * (MachClockFrequency.numer / MachClockFrequency.denom) / 1000000.0);
 }
@@ -111,7 +112,7 @@ double Platform::GetMilliseconds()
 {
 	IsInitialized = 0;
 	DidResize = 0;
-	Mem.IsRunning = 0;
+	Mem.is_running = 0;
 
 	NSOpenGLPixelFormatAttribute PixelFormatAttrs[] = {
 		NSOpenGLPFADoubleBuffer,
@@ -151,7 +152,7 @@ double Platform::GetMilliseconds()
 	[self resizeSurfaceBacking];
 
 	CGLLockContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
-	if (!GL::InitAndValidate()) { exit(1); }
+    if (!gl_lite_init()) { exit(1); }
 	CGLUnlockContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
 
 	CVDisplayLinkStart(DisplayLink);
@@ -250,27 +251,27 @@ static void OnMouseMoveEvent(NSEvent* event)
 	CGLLockContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
 
 	if (!IsInitialized) {
-		Core::Initialize(&Mem);
+		core::init(&Mem);
 		ImGuiIO& io = ImGui::GetIO();
-		io.RenderDrawListsFn = Core::RenderImGui;
+		io.RenderDrawListsFn = core::render_imgui;
 		io.KeyMap[ImGuiKey_Z] = 'z';
 
-		Timer::StopTime(&Mem.Debug.Timers[Timer_Startup]);
-		Mem.IsRunning = 1;
+		timer::stop(&Mem.profile.timers[Timer_Startup]);
+		Mem.is_running = 1;
 		IsInitialized = 1;
 	}
 
-	Timer::StartTime(&Mem.Debug.Timers[Timer_Frame]);
+	timer::start(&Mem.profile.timers[Timer_Frame]);
 
 	float CurTime = (float)(mach_absolute_time() * (MachClockFrequency.numer / MachClockFrequency.denom) / 1000000000.0f);
-	ImGui::GetIO().DeltaTime = (float)(CurTime - Mem.Debug.LastFrameTime);
-	Mem.Debug.LastFrameTime = CurTime;
+	ImGui::GetIO().DeltaTime = (float)(CurTime - Mem.profile.last_frame_time);
+	Mem.profile.last_frame_time = CurTime;
 
 	if (DidResize) {
 		NSSize FrameSize = [[_window contentView] frame].size;
 		ImGui::GetIO().DisplaySize = ImVec2((float)FrameSize.width, (float)FrameSize.height);
-		Mem.Window.Width = FrameSize.width;
-		Mem.Window.Height = FrameSize.height;
+		Mem.window.width = FrameSize.width;
+		Mem.window.height = FrameSize.height;
 
 		[self resizeSurfaceBacking];
 
@@ -279,13 +280,13 @@ static void OnMouseMoveEvent(NSEvent* event)
 
 	ImGui::NewFrame();
 
-	Core::UpdateAndRender(&Mem);
+	core::update(&Mem);
 
 	CGLFlushDrawable((CGLContextObj)[[self openGLContext] CGLContextObj]);
 
 	CGLUnlockContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
 
-	if (!Mem.IsRunning) {
+	if (!Mem.is_running) {
 		[NSApp terminate:self];
 	}
 
@@ -293,11 +294,11 @@ static void OnMouseMoveEvent(NSEvent* event)
 	//       so we need to clear 'z' at the end of every frame
 	ImGui::GetIO().KeysDown['z'] = 0;
 
-	Timer::StopTime(&Mem.Debug.Timers[Timer_Frame]);
-	double FrameRate = (Mem.CurrentTool == PapayaTool_Brush) ? 500.0 : 60.0;
+	timer::stop(&Mem.profile.timers[Timer_Frame]);
+	double FrameRate = (Mem.current_tool == PapayaTool_Brush) ? 500.0 : 60.0;
 	double FrameTime = 1000.0 / FrameRate;
-	double SleepTime = FrameTime - Mem.Debug.Timers[Timer_Frame].ElapsedMs;
-	Mem.Debug.Timers[Timer_Sleep].ElapsedMs = SleepTime;
+	double SleepTime = FrameTime - Mem.profile.timers[Timer_Frame].elapsed_ms;
+	Mem.profile.timers[Timer_Sleep].elapsed_ms = SleepTime;
 	if (SleepTime > 0) { usleep((uint32)SleepTime * 1000); }
 
 	return kCVReturnSuccess;
@@ -320,9 +321,9 @@ static void OnMouseMoveEvent(NSEvent* event)
 
 - (void)windowWillClose:(NSNotification*)notification
 {
-	if (Mem.IsRunning) {
-		Mem.IsRunning = 0;
-		Core::Shutdown(&Mem);
+	if (Mem.is_running) {
+		Mem.is_running = 0;
+		core::destroy(&Mem);
 		CVDisplayLinkStop(DisplayLink);
 		CVDisplayLinkRelease(DisplayLink);
 	}
@@ -345,7 +346,7 @@ static void OnMouseMoveEvent(NSEvent* event)
 {
 	CGLContextObj CGLContext = (CGLContextObj)[[self openGLContext] CGLContextObj];
 
-	GLint WindowSize[2] = {Mem.Window.Width, Mem.Window.Height};
+	GLint WindowSize[2] = {Mem.window.width, Mem.window.height};
 	CGLSetParameter(CGLContext, kCGLCPSurfaceBackingSize, WindowSize);
 	CGLEnable(CGLContext, kCGLCESurfaceBackingSize);
 }
@@ -396,8 +397,8 @@ int main(int argc, char* argv[])
 	MachClockFrequency.denom = 0;
 	mach_timebase_info(&MachClockFrequency);
 
-	Timer::Init(1000.0);
-	Timer::StartTime(&Mem.Debug.Timers[Timer_Startup]);
+	timer::init(1000.0);
+	timer::start(&Mem.profile.timers[Timer_Startup]);
 
 	char PathBuffer[PATH_MAX];
 	proc_pidpath(getpid(), PathBuffer, sizeof(PathBuffer) - 1);
@@ -416,10 +417,10 @@ int main(int argc, char* argv[])
 	int32 ScreenWidth = ScreenDimensions.size.width;
 	int32 ScreenHeight = ScreenDimensions.size.height;
 
-	Mem.Window.Width = OSX_INITIAL_WINDOW_WIDTH;
-	Mem.Window.Height = OSX_INITIAL_WINDOW_HEIGHT;
-	ImGui::GetIO().DisplaySize = ImVec2((float)Mem.Window.Width, (float)Mem.Window.Height);
-	NSRect WindowRect = NSMakeRect((ScreenWidth - Mem.Window.Width) / 2, (ScreenHeight - Mem.Window.Height) / 2, Mem.Window.Width, Mem.Window.Height);
+	Mem.window.width = OSX_INITIAL_WINDOW_WIDTH;
+	Mem.window.height = OSX_INITIAL_WINDOW_HEIGHT;
+	ImGui::GetIO().DisplaySize = ImVec2((float)Mem.window.width, (float)Mem.window.height);
+	NSRect WindowRect = NSMakeRect((ScreenWidth - Mem.window.width) / 2, (ScreenHeight - Mem.window.height) / 2, Mem.window.width, Mem.window.height);
 
 	NSUInteger WindowStyle = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 	NSWindow* Window = [[NSWindow alloc] initWithContentRect:WindowRect styleMask:WindowStyle backing:NSBackingStoreBuffered defer:NO];
