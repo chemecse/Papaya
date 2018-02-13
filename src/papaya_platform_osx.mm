@@ -236,9 +236,9 @@ static void OnMouseMoveEvent(NSEvent* event)
 {
 	uint32 Modifiers = [event modifierFlags];
 
-	bool32 IsCtrlDown  = ((Modifiers & NSControlKeyMask) || (Modifiers & NSCommandKeyMask));
-	bool32 IsShiftDown = ((Modifiers & NSShiftKeyMask) != 0);
-	bool32 IsAltDown   = ((Modifiers & NSAlternateKeyMask) != 0);
+	bool32 IsCtrlDown  = ((Modifiers & NSEventModifierFlagControl) || (Modifiers & NSEventModifierFlagCommand));
+	bool32 IsShiftDown = ((Modifiers & NSEventModifierFlagShift) != 0);
+	bool32 IsAltDown   = ((Modifiers & NSEventModifierFlagOption) != 0);
 
 	ImGui::GetIO().KeyCtrl  = IsCtrlDown;
 	ImGui::GetIO().KeyShift = IsShiftDown;
@@ -357,7 +357,7 @@ static void OnMouseMoveEvent(NSEvent* event)
 	NSOpenPanel* Panel = [NSOpenPanel openPanel];
 	[Panel makeKeyAndOrderFront:self];
 	int32_t PanelRunResult = [Panel runModal];
-	if (PanelRunResult == NSFileHandlingPanelOKButton) {
+	if (PanelRunResult == NSModalResponseOK) {
 		NSArray* Urls = [Panel URLs];
 		if ([Urls count] > 0) {
 			NSURL* Url = [Urls objectAtIndex:0];
@@ -372,7 +372,7 @@ static void OnMouseMoveEvent(NSEvent* event)
 	NSSavePanel* Panel = [NSSavePanel savePanel];
 	[Panel makeKeyAndOrderFront:self];
 	int32 PanelRunResult = [Panel runModal];
-	if (PanelRunResult == NSFileHandlingPanelOKButton) {
+	if (PanelRunResult == NSModalResponseOK) {
 		Return->Url = [[Panel URL] copy];
 	}
 }
@@ -422,7 +422,7 @@ int main(int argc, char* argv[])
 	ImGui::GetIO().DisplaySize = ImVec2((float)Mem.window.width, (float)Mem.window.height);
 	NSRect WindowRect = NSMakeRect((ScreenWidth - Mem.window.width) / 2, (ScreenHeight - Mem.window.height) / 2, Mem.window.width, Mem.window.height);
 
-	NSUInteger WindowStyle = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+	NSUInteger WindowStyle = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
 	NSWindow* Window = [[NSWindow alloc] initWithContentRect:WindowRect styleMask:WindowStyle backing:NSBackingStoreBuffered defer:NO];
 	[Window autorelease];
 
